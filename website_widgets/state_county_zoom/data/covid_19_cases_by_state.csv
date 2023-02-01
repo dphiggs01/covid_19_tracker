@@ -1,0 +1,55 @@
+state,cases,deaths,state_id
+Alabama,639,4,01
+Alaska,85,1,02
+Arizona,665,11,04
+Arkansas,442,4,05
+California,4917,104,06
+Colorado,1735,30,08
+Connecticut,1291,27,09
+Delaware,165,2,10
+District of Columbia,304,4,11
+Florida,3199,46,12
+Georgia,2211,64,13
+Guam,53,1,
+Hawaii,120,0,15
+Idaho,233,4,16
+Illinois,3087,37,17
+Indiana,986,26,18
+Iowa,236,3,19
+Kansas,213,4,20
+Kentucky,306,8,21
+Louisiana,2746,119,22
+Maine,170,1,23
+Maryland,790,5,24
+Massachusetts,3240,35,25
+Michigan,3652,93,26
+Minnesota,398,4,27
+Mississippi,582,8,28
+Missouri,673,9,29
+Montana,121,1,30
+Nebraska,103,2,31
+Nevada,621,10,32
+New Hampshire,187,2,33
+New Jersey,8825,115,34
+New Mexico,191,1,35
+New York,44636,535,36
+North Carolina,785,3,37
+North Dakota,68,1,38
+Ohio,1144,22,39
+Oklahoma,322,8,40
+Oregon,415,12,41
+Pennsylvania,2218,23,42
+Puerto Rico,79,3,
+Rhode Island,203,0,44
+South Carolina,542,13,45
+South Dakota,58,1,46
+Tennessee,1181,6,47
+Texas,1943,25,48
+Utah,480,1,49
+Vermont,201,10,50
+Virgin Islands,19,0,
+Virginia,606,9,51
+Washington,3727,179,53
+West Virginia,96,0,54
+Wisconsin,930,16,55
+Wyoming,74,0,56

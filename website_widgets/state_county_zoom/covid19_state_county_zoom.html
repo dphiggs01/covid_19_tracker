@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>D3: Zoom in to reveal counties</title>
+    <style>
+        .background {
+            fill: none;
+            pointer-events: all;
+        }
+
+        #states {
+            fill: #aaa;
+        }
+
+        #states .active {
+            display:none;
+        }
+
+        #state-borders {
+            fill: none;
+            stroke: #fff;
+            stroke-width: 1.5px;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+            pointer-events: none;
+        }
+
+
+        .nation-borders {
+            fill: none;
+            stroke: #000;
+            stroke-linejoin: round;
+        }
+
+
+        .county-boundary {
+            fill: #aaa;
+            stroke: #fff;
+            stroke-width: .5px;
+        }
+
+        .county-boundary:hover, .state:hover {
+            fill: orange;
+        }
+    </style>
+</head>
+<body>
+    <div class="viz"></div>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.7.0/d3.min.js"></script>
+    <script type="text/javascript" src="https://d3js.org/topojson.v3.min.js"></script>
+    <script src="../js/d3-tip.min.js"></script>
+    <script type="text/javascript">
+        var margin = {
+            top: 10,
+            bottom: 10,
+            left: 10,
+            right:10
+        }, width = parseInt(d3.select('.viz').style('width'))
+            , width = width - margin.left - margin.right
+            , mapRatio = 0.5
+            , height = width * mapRatio
+            , active = d3.select(null);
+
+        var svg = d3.select('.viz').append('svg')
+            .attr('class', 'center-container')
+            .attr('height', height + margin.top + margin.bottom)
+            .attr('width', width + margin.left + margin.right);
+
+        svg.append('rect')
+            .attr('class', 'background center-container')
+            .attr('height', height + margin.top + margin.bottom)
+            .attr('width', width + margin.left + margin.right)
+            .on('click', clicked);
+
+        var tool_tip = d3.tip()
+            .attr("class", "d3-tip")
+            .offset([-2, 0])
+            .html(function (d) {
+                county_id = d['id'];
+                properties = d['properties'];
+                console.log(properties['name']);
+                covid_data_for_county = covid_data_by_county[county_id];
+                tip_str="No data for "+properties['name'] + " county";
+                if (typeof(covid_data_for_county) !== "undefined"){
+                    deaths_count = covid_data_for_county[0];
+                    cases_count = covid_data_for_county[1];
+                    state = covid_data_for_county[2];
+                    county = covid_data_for_county[3];
+                    tip_str = "Location: " + county + ", "+state+"<br/>Cases: " + cases_count+ ", Deaths: "+deaths_count;
+                }
+                return tip_str
+            });
+
+        colorScheme = ['#f7fcfd','#e0ecf4','#bfd3e6','#9ebcda','#8c96c6','#8c6bb1','#88419d','#810f7c','#4d004b'];
+
+        svg.call(tool_tip);
+
+        covid_data_by_county = {};
+        covid_data_by_state = {};
+
+
+        var promises = [
+            d3.json("./data/counties-10m.json"),
+            d3.csv("./data/covid_19_cases_by_county.csv", function (d) {
+                covid_data_by_county[d.fips] = [d['deaths'],d['cases'],d['state'],d['county']];
+            }),
+            d3.csv("./data/covid_19_cases_by_state.csv", function (d) {
+                covid_data_by_state[d.state_id] = [d['deaths'],d['cases'],d['state']];
+            })
+          ];
+          Promise.all(promises).then(ready);
+
+        var projection = d3.geoAlbersUsa()
+            .translate([width /2 , height / 2])
+            .scale(width);
+
+        var path = d3.geoPath()
+            .projection(projection);
+
+        var g = svg.append("g")
+            .attr('class', 'center-container center-items us-state')
+            .attr('transform', 'translate('+margin.left+','+margin.top+')')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        function ready(promise_data) {
+            us = promise_data[0];
+
+            mapScaleState = d3.scaleLog()
+                .domain([1, 50000])
+                .range([0, 8]);
+
+            mapScaleCounty = d3.scaleLog()
+                .domain([1, 4000])
+                .range([0, 8]);
+
+            g.append("g")
+                .attr("id", "counties")
+                .selectAll("path")
+                .data(topojson.feature(us, us.objects.counties).features)
+                .enter().append("path")
+                .on('mouseover', tool_tip.show)
+                .on('mouseout', tool_tip.hide)
+                .attr("d", path)
+                .attr("fill", function (d) {
+                    county = d['id'];
+                    covid_data = covid_data_by_county[county];
+                    cases_count=0;
+                    if (typeof(covid_data) !== "undefined"){
+                       cases_count = covid_data[1];
+                    }
+                    //console.log(count)
+                    log = 0;
+                    log = Math.round(mapScaleCounty(cases_count));
+                    log = log === -Infinity ? 0 : log;
+
+                    if (typeof log === 'undefined'){
+                        log=0
+                    }
+                    if (log >8){
+                        log=8
+                    }
+                    //console.log("State="+state+" count="+count+" log="+log+" color="+colorScheme[log]);
+
+                    return colorScheme[log];
+                })
+
+                .on("click", reset);
+
+            g.append("g")
+                .attr("id", "nation")
+                .selectAll("path")
+                .data(topojson.feature(us, us.objects.nation).features)
+                .enter().append("path")
+                .attr("d", path)
+                .attr("class", "nation-borders");
+
+            g.append("g")
+                .attr("id", "states")
+                .selectAll("path")
+                .data(topojson.feature(us, us.objects.states).features)
+                .enter().append("path")
+                .attr("d", path)
+                .attr("class", "state")
+                .attr("fill", function (d) {
+                    state = d['id'];
+                    covid_data = covid_data_by_state[state];
+                    cases_count=0;
+                    if (typeof(covid_data) !== "undefined"){
+                       cases_count = covid_data[1];
+                    }
+                    //console.log(count)
+                    log = 0;
+                    log = Math.round(mapScaleState(cases_count));
+                    log = log === -Infinity ? 0 : log;
+
+                    if (typeof log === 'undefined'){
+                        log=0
+                    }
+                    if (log >8){
+                        log=8
+                    }
+                    //console.log("State="+state+" count="+count+" log="+log+" color="+colorScheme[log]);
+
+                    return colorScheme[log];
+                })
+                .on("click", clicked);
+
+
+            g.append("path")
+                .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
+                .attr("id", "state-borders")
+                .attr("d", path);
+
+
+        }
+
+        function clicked(d) {
+            if (d3.select('.background').node() === this) return reset();
+
+            if (active.node() === this) return reset();
+
+            active.classed("active", false);
+            active = d3.select(this).classed("active", true);
+
+            var bounds = path.bounds(d),
+                dx = bounds[1][0] - bounds[0][0],
+                dy = bounds[1][1] - bounds[0][1],
+                x = (bounds[0][0] + bounds[1][0]) / 2,
+                y = (bounds[0][1] + bounds[1][1]) / 2,
+                scale = .9 / Math.max(dx / width, dy / height),
+                translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+            g.transition()
+                .duration(750)
+                .style("stroke-width", 1.5 / scale + "px")
+                .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
+
+
+        }
+
+
+        function reset() {
+            active.classed("active", false);
+            active = d3.select(null);
+
+            g.transition()
+                .delay(100)
+                .duration(750)
+                .style("stroke-width", "1.5px")
+                .attr('transform', 'translate('+margin.left+','+margin.top+')');
+
+        }
+
+            grid_size = 30;
+
+    var legend = svg.append("g")
+        .attr("transform", "translate(" + (width + margin.left + margin.right) + "," + margin.top + ")")
+        .selectAll(".legend")
+        .data([0, 1, 10, 15, 20, 25, 30, 35, 40])
+        .enter();
+
+    legend.append("rect")
+        .attr("x", -150)
+        .attr("y", function (d, i) {
+            return (grid_size * i) + 160;
+        })
+        .attr("width", grid_size)
+        .attr("height", grid_size)
+        .style("fill", function (d, i) {
+            return colorScheme[i];
+        });
+
+    legend.append("text")
+        .attr("class", "mono")
+        .text(function (d,i) {
+            ret_val = d3.format(",")(d);
+            if(i===8){
+                ret_val = ret_val + ' +'
+            }
+            return ret_val
+        })
+        .attr("x", -110)
+        .attr("y", function (d, i) {
+            return (grid_size * i) + 180;
+        });
+
+    legend.append("text")
+        .attr("text-anchor", "middle")
+        .attr("font-family", "sans-serif")
+        .attr("font-size", "16px")
+        .attr("font-weight", "500")
+        //.attr("transform", "translate("+ (grid_size+10) +","+(height-10)+")")
+        .text("Cases");
+
+    </script>
+</body>
+</html>
